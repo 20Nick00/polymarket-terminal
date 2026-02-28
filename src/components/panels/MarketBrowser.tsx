@@ -1,11 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Table, Input, Tag, Space, Typography, Spin } from 'antd';
-import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Input, Typography, Spin, Space, Tag } from 'antd';
+import { SearchOutlined, StarOutlined, StarFilled, ClockCircleOutlined } from '@ant-design/icons';
 import { useMarketStore } from '../../stores/marketStore';
 import { useWatchlistStore } from '../../stores/watchlistStore';
-import { parseOutcomePrices } from '../../api/helpers';
-import type { PolymarketEvent } from '../../types/market';
+import { parseOutcomePrices, formatUsd, getProbabilityColor, formatChange, formatTimeToResolution } from '../../api/helpers';
+import type { PolymarketEvent, PolymarketMarket } from '../../types/market';
 
 const { Text } = Typography;
 
@@ -26,7 +25,7 @@ export default function MarketBrowser() {
   const handleSearch = useCallback(
     debounce((value: string) => {
       searchMarkets(value);
-    }, 400),
+    }, 300),
     [searchMarkets],
   );
 
@@ -36,91 +35,19 @@ export default function MarketBrowser() {
     handleSearch(val);
   };
 
-  const getPrice = (event: PolymarketEvent): number => {
-    const m = event.markets?.[0];
-    if (!m) return 0;
-    const { yes } = parseOutcomePrices(m.outcomePrices);
-    return Math.round(yes * 100);
-  };
-
-  const getVolume = (event: PolymarketEvent): number => {
-    return event.volume || event.markets?.reduce((sum, m) => sum + parseFloat(m.volume || '0'), 0) || 0;
-  };
-
-  const getLiquidity = (event: PolymarketEvent): number => {
-    return event.liquidity || event.markets?.reduce((sum, m) => sum + parseFloat(m.liquidity || '0'), 0) || 0;
-  };
-
-  const columns: ColumnsType<PolymarketEvent> = [
-    {
-      title: '',
-      key: 'watch',
-      width: 36,
-      render: (_, record) => (
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleWatch(record.id, record.title, record.slug);
-          }}
-          style={{ cursor: 'pointer', color: isWatched(record.id) ? '#faad14' : '#555' }}
-        >
-          {isWatched(record.id) ? <StarFilled /> : <StarOutlined />}
-        </span>
-      ),
-    },
-    {
-      title: 'Event',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
-      render: (text: string) => (
-        <Text style={{ color: '#e6e6e6', fontSize: 12 }}>{text}</Text>
-      ),
-    },
-    {
-      title: 'YES',
-      key: 'price',
-      width: 65,
-      sorter: (a, b) => getPrice(a) - getPrice(b),
-      render: (_, record) => {
-        const price = getPrice(record);
-        return (
-          <Text strong style={{ color: price >= 50 ? '#52c41a' : '#ff4d4f', fontSize: 12 }}>
-            {price}¢
-          </Text>
-        );
-      },
-    },
-    {
-      title: 'Vol',
-      key: 'volume',
-      width: 80,
-      sorter: (a, b) => getVolume(a) - getVolume(b),
-      defaultSortOrder: 'descend',
-      render: (_, record) => {
-        const vol = getVolume(record);
-        return (
-          <Text style={{ color: '#999', fontSize: 11 }}>
-            ${vol >= 1000000 ? `${(vol / 1000000).toFixed(1)}M` : vol >= 1000 ? `${(vol / 1000).toFixed(0)}K` : vol.toFixed(0)}
-          </Text>
-        );
-      },
-    },
-    {
-      title: 'Liq',
-      key: 'liquidity',
-      width: 70,
-      sorter: (a, b) => getLiquidity(a) - getLiquidity(b),
-      render: (_, record) => {
-        const liq = getLiquidity(record);
-        return (
-          <Text style={{ color: '#999', fontSize: 11 }}>
-            ${liq >= 1000000 ? `${(liq / 1000000).toFixed(1)}M` : liq >= 1000 ? `${(liq / 1000).toFixed(0)}K` : liq.toFixed(0)}
-          </Text>
-        );
-      },
-    },
-  ];
+  // Client-side filter for instant feel
+  const filteredEvents = useMemo(() => {
+    if (!searchValue.trim()) return events;
+    const q = searchValue.toLowerCase();
+    return events.filter(ev =>
+      ev.title.toLowerCase().includes(q) ||
+      ev.description?.toLowerCase().includes(q) ||
+      ev.markets?.some(m =>
+        m.question?.toLowerCase().includes(q) ||
+        m.outcomes?.some(o => o.toLowerCase().includes(q))
+      )
+    );
+  }, [events, searchValue]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -131,25 +58,28 @@ export default function MarketBrowser() {
         value={searchValue}
         onChange={onSearchChange}
         style={{
-          marginBottom: 6,
+          marginBottom: 4,
           background: '#1a1a2e',
           borderColor: '#333',
         }}
         allowClear
+        size="small"
       />
-      <Space wrap size={[4, 4]} style={{ marginBottom: 6 }}>
+      <Space wrap size={[3, 3]} style={{ marginBottom: 4, flexShrink: 0 }}>
         {CATEGORY_TAGS.map(tag => (
           <Tag
             key={tag}
-            color={activeTag === (tag === 'All' ? '' : tag) ? '#1668dc' : undefined}
             onClick={() => setActiveTag(tag === 'All' ? '' : tag)}
             style={{
               cursor: 'pointer',
-              fontSize: 11,
+              fontSize: 10,
               margin: 0,
-              background: activeTag === (tag === 'All' ? '' : tag) ? '#1668dc' : '#1a1a2e',
-              borderColor: '#333',
-              color: '#ccc',
+              padding: '0 6px',
+              lineHeight: '18px',
+              background: activeTag === (tag === 'All' ? '' : tag) ? '#1668dc' : '#111128',
+              borderColor: 'transparent',
+              color: activeTag === (tag === 'All' ? '' : tag) ? '#fff' : '#888',
+              borderRadius: 3,
             }}
           >
             {tag}
@@ -157,28 +87,199 @@ export default function MarketBrowser() {
         ))}
       </Space>
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <Spin spinning={eventsLoading} size="small">
-          <Table
-            dataSource={events}
-            columns={columns}
-            rowKey="id"
-            size="small"
-            pagination={false}
-            showSorterTooltip={false}
-            onRow={(record) => ({
-              onClick: () => selectEvent(record),
-              style: {
-                cursor: 'pointer',
-                background: selectedEvent?.id === record.id ? '#1a1a3e' : undefined,
-              },
-            })}
-            scroll={{ y: 'calc(100% - 10px)' }}
-            style={{ fontSize: 11 }}
-          />
-        </Spin>
+        {eventsLoading && filteredEvents.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
+            <Spin size="small" />
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <Text style={{ color: '#666', fontSize: 11 }}>
+              {searchValue ? 'No results — try broadening your search' : 'No markets found'}
+            </Text>
+          </div>
+        ) : (
+          filteredEvents.map((event, idx) => (
+            <MarketRow
+              key={event.id}
+              event={event}
+              index={idx + 1}
+              isSelected={selectedEvent?.id === event.id}
+              isWatched={isWatched(event.id)}
+              onSelect={() => selectEvent(event)}
+              onToggleWatch={() => toggleWatch(event.id, event.title, event.slug)}
+            />
+          ))
+        )}
       </div>
     </div>
   );
+}
+
+interface MarketRowProps {
+  event: PolymarketEvent;
+  index: number;
+  isSelected: boolean;
+  isWatched: boolean;
+  onSelect: () => void;
+  onToggleWatch: () => void;
+}
+
+function MarketRow({ event, index, isSelected, isWatched, onSelect, onToggleWatch }: MarketRowProps) {
+  const isMultiOutcome = event.markets && event.markets.length > 1;
+  const primaryMarket = event.markets?.[0];
+
+  // Get price from first market
+  const yesPrice = primaryMarket ? parseOutcomePrices(primaryMarket.outcomePrices).yes : 0;
+
+  // Get 24h change
+  const dayChange = primaryMarket?.oneDayPriceChange ?? 0;
+  const changeInfo = formatChange(dayChange * 100);
+
+  // Volume & Liquidity
+  const vol = event.volume || event.markets?.reduce((s, m) => s + parseFloat(m.volume || '0'), 0) || 0;
+  const liq = event.liquidity || event.markets?.reduce((s, m) => s + parseFloat(m.liquidity || '0'), 0) || 0;
+
+  // Time to resolution
+  const endDate = primaryMarket?.endDate || event.endDate;
+  const timeInfo = formatTimeToResolution(endDate);
+
+  // Image
+  const imageUrl = event.image || primaryMarket?.image;
+
+  // Top outcomes for multi-outcome
+  const topOutcomes = isMultiOutcome
+    ? getTopOutcomes(event.markets, 3)
+    : [];
+
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        padding: '6px 6px',
+        borderBottom: '1px solid #111128',
+        cursor: 'pointer',
+        background: isSelected ? '#1a1a3e' : 'transparent',
+        borderLeft: isSelected ? '2px solid #1668dc' : '2px solid transparent',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = '#111128'; }}
+      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+        {/* Row number */}
+        <Text style={{ color: '#444', fontSize: 9, width: 16, textAlign: 'right', flexShrink: 0, marginTop: 2 }}>
+          #{index}
+        </Text>
+
+        {/* Thumbnail */}
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            style={{
+              width: 32, height: 32, borderRadius: 4, objectFit: 'cover',
+              flexShrink: 0, background: '#1a1a2e',
+            }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <div style={{
+            width: 32, height: 32, borderRadius: 4, flexShrink: 0,
+            background: getProbabilityColor(yesPrice) + '22',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: getProbabilityColor(yesPrice),
+            fontSize: 14, fontWeight: 700,
+          }}>
+            {event.title.charAt(0).toUpperCase()}
+          </div>
+        )}
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Title row */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4 }}>
+            <Text
+              style={{ color: '#e6e6e6', fontSize: 11, lineHeight: '14px', flex: 1 }}
+              ellipsis
+            >
+              {event.title}
+            </Text>
+
+            {/* Star */}
+            <span
+              onClick={(e) => { e.stopPropagation(); onToggleWatch(); }}
+              style={{ color: isWatched ? '#faad14' : '#333', fontSize: 11, flexShrink: 0, cursor: 'pointer' }}
+            >
+              {isWatched ? <StarFilled /> : <StarOutlined />}
+            </span>
+          </div>
+
+          {/* Price + Change row */}
+          {!isMultiOutcome && (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+              <Text style={{
+                color: getProbabilityColor(yesPrice),
+                fontSize: 18,
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                lineHeight: 1,
+              }}>
+                {Math.round(yesPrice * 100)}%
+              </Text>
+              {dayChange !== 0 && (
+                <Text style={{ color: changeInfo.color, fontSize: 10, fontWeight: 600 }}>
+                  {changeInfo.arrow} {changeInfo.text}
+                </Text>
+              )}
+              {timeInfo.urgent && (
+                <ClockCircleOutlined style={{ color: '#ff6b6b', fontSize: 10 }} />
+              )}
+            </div>
+          )}
+
+          {/* Multi-outcome preview */}
+          {isMultiOutcome && topOutcomes.length > 0 && (
+            <div style={{ marginTop: 2 }}>
+              <Text style={{ color: '#999', fontSize: 10, lineHeight: '14px' }}>
+                {topOutcomes.map((o, i) => (
+                  <span key={o.question}>
+                    {i > 0 && <span style={{ color: '#444' }}> · </span>}
+                    <span style={{ color: '#ccc' }}>{o.label}</span>
+                    {' '}
+                    <span style={{ color: getProbabilityColor(o.price), fontWeight: 600 }}>
+                      {Math.round(o.price * 100)}%
+                    </span>
+                  </span>
+                ))}
+              </Text>
+            </div>
+          )}
+
+          {/* Volume + Liquidity row */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+            <Text style={{ color: '#555', fontSize: 9 }}>
+              Vol {formatUsd(vol)}
+            </Text>
+            <Text style={{ color: '#555', fontSize: 9 }}>
+              Liq {formatUsd(liq)}
+            </Text>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getTopOutcomes(markets: PolymarketMarket[], count: number): { question: string; label: string; price: number }[] {
+  return markets
+    .map(m => {
+      const { yes } = parseOutcomePrices(m.outcomePrices);
+      // For multi-outcome, the question IS the outcome label
+      const label = m.question?.replace(/^Will /, '').replace(/\?$/, '').slice(0, 25) || m.outcomes?.[0] || '';
+      return { question: m.question || '', label, price: yes };
+    })
+    .sort((a, b) => b.price - a.price)
+    .slice(0, count);
 }
 
 function debounce<T extends (...args: Parameters<T>) => void>(fn: T, delay: number): T {

@@ -10,9 +10,11 @@ export interface PolymarketEvent {
   archived: boolean;
   liquidity: number;
   volume: number;
+  volume24hr?: number;
   markets: PolymarketMarket[];
   tags?: string[];
   image?: string;
+  createdAt?: string;
 }
 
 export interface PolymarketMarket {
@@ -33,9 +35,11 @@ export interface PolymarketMarket {
   bestAsk: number;
   lastTradePrice: number;
   spread: number;
+  oneDayPriceChange?: number;
   image?: string;
   description?: string;
   tags?: { label: string }[];
+  createdAt?: string;
 }
 
 export interface OrderBookEntry {
@@ -95,4 +99,33 @@ export interface WatchlistItem {
   title: string;
   slug: string;
   addedAt: number;
+}
+
+export interface Position {
+  title: string;
+  slug: string;
+  outcome: string;
+  size: number;
+  avgPrice: number;
+  initialValue: number;
+  currentValue: number;
+  cashPnl: number;
+  percentPnl: number;
+  curPrice: number;
+  realizedPnl: number;
+  totalBought: number;
+  redeemable: boolean;
+  conditionId?: string;
+  image?: string;
+}
+
+export interface TradeHistoryEntry {
+  id: string;
+  timestamp: string;
+  title: string;
+  side: string;
+  price: number;
+  size: number;
+  usdcAmount: number;
+  outcome: string;
 }

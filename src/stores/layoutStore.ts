@@ -13,23 +13,21 @@ interface Layout {
   static?: boolean;
 }
 
-const LAYOUT_STORAGE_KEY = 'polymarket-layout-v2';
+const LAYOUT_STORAGE_KEY = 'polymarket-layout-v3';
 
 const DEFAULT_LAYOUT: Layout[] = [
-  // Left: Markets + Watchlist tabbed panel (full height)
+  // Left: Markets + Watchlist + Portfolio tabbed panel (full height)
   { i: 'left-panel', x: 0, y: 0, w: 3, h: 20, minW: 3, minH: 8 },
-  // Center top: Chart
-  { i: 'chart', x: 3, y: 0, w: 6, h: 10, minW: 4, minH: 6 },
-  // Right top: Market Info
-  { i: 'market-info', x: 9, y: 0, w: 3, h: 10, minW: 2, minH: 5 },
-  // Center bottom-left: Order Book + News tabs
-  { i: 'order-book-news', x: 3, y: 10, w: 3, h: 10, minW: 2, minH: 6 },
-  // Center bottom-middle: Trade Ticker
-  { i: 'trade-ticker', x: 6, y: 10, w: 3, h: 10, minW: 2, minH: 5 },
-  // Right bottom-top: Top Holders
-  { i: 'top-holders', x: 9, y: 10, w: 3, h: 5, minW: 2, minH: 4 },
-  // Right bottom-bottom: Quick Stats
-  { i: 'quick-stats', x: 9, y: 15, w: 3, h: 5, minW: 2, minH: 4 },
+  // Center: MarketHeader + Outcomes + Chart (large)
+  { i: 'center-panel', x: 3, y: 0, w: 6, h: 12, minW: 4, minH: 8 },
+  // Right top: Market Info + Related Markets
+  { i: 'market-info', x: 9, y: 0, w: 3, h: 12, minW: 2, minH: 6 },
+  // Bottom center: Order Book + Trades + News tabs
+  { i: 'book-trades-news', x: 3, y: 12, w: 3, h: 8, minW: 2, minH: 5 },
+  // Bottom center: Quick Stats / Analytics
+  { i: 'quick-stats', x: 6, y: 12, w: 3, h: 8, minW: 2, minH: 4 },
+  // Bottom right: Top Holders
+  { i: 'top-holders', x: 9, y: 12, w: 3, h: 8, minW: 2, minH: 4 },
 ];
 
 function loadLayout(): Layout[] {
@@ -37,9 +35,8 @@ function loadLayout(): Layout[] {
     const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Validate that it has the new panel keys
       const keys = parsed.map((l: Layout) => l.i);
-      if (keys.includes('left-panel') && keys.includes('order-book-news')) {
+      if (keys.includes('center-panel') && keys.includes('book-trades-news')) {
         return parsed;
       }
     }

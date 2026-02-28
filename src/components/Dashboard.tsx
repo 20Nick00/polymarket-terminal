@@ -6,10 +6,8 @@ import {
   ReloadOutlined,
   LayoutOutlined,
   BarChartOutlined,
-  ReadOutlined,
   TeamOutlined,
   LineChartOutlined,
-  ThunderboltOutlined,
   DashboardOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
@@ -17,11 +15,10 @@ import { useLayoutStore } from '../stores/layoutStore';
 import { useMarketStore } from '../stores/marketStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import LeftPanel from './panels/LeftPanel';
-import PriceChart from './panels/PriceChart';
+import CenterPanel from './panels/CenterPanel';
 import OrderBookNewsPanel from './panels/OrderBookNewsPanel';
 import MarketInfo from './panels/MarketInfo';
 import TopHolders from './panels/TopHolders';
-import TradeTicker from './panels/TradeTicker';
 import QuickStats from './panels/QuickStats';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -30,21 +27,19 @@ const { Text } = Typography;
 
 const PANEL_CONFIG: Record<string, { title: string; icon: React.ReactNode }> = {
   'left-panel': { title: 'Markets', icon: <AppstoreOutlined /> },
-  'chart': { title: 'Chart', icon: <LineChartOutlined /> },
-  'order-book-news': { title: 'Book / News', icon: <BarChartOutlined /> },
-  'market-info': { title: 'Market Info', icon: <ReadOutlined /> },
+  'center-panel': { title: 'Chart', icon: <LineChartOutlined /> },
+  'book-trades-news': { title: 'Book / Trades / News', icon: <BarChartOutlined /> },
+  'market-info': { title: 'Market Info', icon: <DashboardOutlined /> },
   'top-holders': { title: 'Top Holders', icon: <TeamOutlined /> },
-  'trade-ticker': { title: 'Trades', icon: <ThunderboltOutlined /> },
   'quick-stats': { title: 'Analytics', icon: <DashboardOutlined /> },
 };
 
 const PANEL_COMPONENTS: Record<string, React.FC> = {
   'left-panel': LeftPanel,
-  'chart': PriceChart,
-  'order-book-news': OrderBookNewsPanel,
+  'center-panel': CenterPanel,
+  'book-trades-news': OrderBookNewsPanel,
   'market-info': MarketInfo,
   'top-holders': TopHolders,
-  'trade-ticker': TradeTicker,
   'quick-stats': QuickStats,
 };
 
@@ -90,6 +85,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', gap: 6 }}>
             {[
               { keys: 'Ctrl+K', desc: 'Search' },
+              { keys: '↑↓', desc: 'Navigate' },
               { keys: 'R', desc: 'Refresh' },
               { keys: 'W', desc: 'Watch' },
               { keys: 'Esc', desc: 'Deselect' },
@@ -151,29 +147,42 @@ export default function Dashboard() {
               const Component = PANEL_COMPONENTS[item.i];
               if (!config || !Component) return null;
 
+              // CenterPanel manages its own header, so skip the panel header
+              const skipHeader = item.i === 'center-panel';
+
               return (
                 <div key={item.i} style={{ background: '#0d0d1a', borderRadius: 4, border: '1px solid #1a1a2e', overflow: 'hidden' }}>
+                  {!skipHeader && (
+                    <div
+                      className="panel-header"
+                      style={{
+                        height: 24,
+                        background: '#111128',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0 8px',
+                        cursor: 'grab',
+                        borderBottom: '1px solid #1a1a2e',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ color: '#555', fontSize: 11, marginRight: 6 }}>
+                        {config.icon}
+                      </span>
+                      <Text style={{ color: '#888', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        {config.title}
+                      </Text>
+                    </div>
+                  )}
                   <div
-                    className="panel-header"
+                    className={skipHeader ? 'panel-header' : undefined}
                     style={{
-                      height: 24,
-                      background: '#111128',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0 8px',
-                      cursor: 'grab',
-                      borderBottom: '1px solid #1a1a2e',
-                      flexShrink: 0,
+                      height: skipHeader ? '100%' : 'calc(100% - 24px)',
+                      padding: skipHeader ? 0 : 4,
+                      overflow: 'hidden',
+                      cursor: skipHeader ? undefined : undefined,
                     }}
                   >
-                    <span style={{ color: '#555', fontSize: 11, marginRight: 6 }}>
-                      {config.icon}
-                    </span>
-                    <Text style={{ color: '#888', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      {config.title}
-                    </Text>
-                  </div>
-                  <div style={{ height: 'calc(100% - 24px)', padding: 6, overflow: 'hidden' }}>
                     <Component />
                   </div>
                 </div>
