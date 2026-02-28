@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Position, TradeHistoryEntry } from '../types/market';
 
 const dataApi = axios.create({
   baseURL: '/api/data',
@@ -60,6 +61,28 @@ export async function fetchLeaderboard(limit = 20): Promise<LeaderboardEntry[]> 
   try {
     const { data } = await dataApi.get('/leaderboard/profit', {
       params: { limit },
+    });
+    return data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPositions(walletAddress: string): Promise<Position[]> {
+  try {
+    const { data } = await dataApi.get('/positions', {
+      params: { user: walletAddress },
+    });
+    return data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchTradeHistory(walletAddress: string, limit = 100): Promise<TradeHistoryEntry[]> {
+  try {
+    const { data } = await dataApi.get('/activity', {
+      params: { user: walletAddress, type: 'TRADE', limit },
     });
     return data ?? [];
   } catch {
