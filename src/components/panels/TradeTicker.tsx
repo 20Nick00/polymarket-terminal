@@ -1,20 +1,11 @@
-import { useEffect } from 'react';
 import { Typography, Spin, Empty } from 'antd';
 import { useMarketStore } from '../../stores/marketStore';
+import { formatRelativeTime } from '../../api/helpers';
 
 const { Text } = Typography;
 
 export default function TradeTicker() {
-  const { trades, tradesLoading, selectedTokenId, selectedMarket, loadTrades } = useMarketStore();
-
-  // Auto-refresh trades every 10 seconds
-  useEffect(() => {
-    if (!selectedTokenId) return;
-    const timer = window.setInterval(() => {
-      loadTrades(selectedTokenId);
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [selectedTokenId, loadTrades]);
+  const { trades, tradesLoading, selectedMarket } = useMarketStore();
 
   if (!selectedMarket) {
     return (
@@ -60,7 +51,7 @@ export default function TradeTicker() {
           const isBuy = trade.side === 'BUY';
           const price = parseFloat(trade.price);
           const size = parseFloat(trade.size);
-          const time = formatTradeTime(trade.timestamp);
+          const time = formatRelativeTime(trade.timestamp);
 
           return (
             <div
@@ -70,7 +61,6 @@ export default function TradeTicker() {
                 alignItems: 'center',
                 padding: '2px 4px',
                 borderBottom: '1px solid #111128',
-                animation: i === 0 ? 'fadeIn 0.3s ease' : undefined,
               }}
             >
               <Text style={{ color: '#666', fontSize: 10, width: 50, fontFamily: 'monospace' }}>
@@ -119,23 +109,6 @@ export default function TradeTicker() {
       </div>
     </div>
   );
-}
-
-function formatTradeTime(timestamp: string): string {
-  try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-
-    if (diffMin < 1) return 'now';
-    if (diffMin < 60) return `${diffMin}m`;
-    const diffHrs = Math.floor(diffMin / 60);
-    if (diffHrs < 24) return `${diffHrs}h`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {
-    return '--';
-  }
 }
 
 function fmtSize(size: number): string {

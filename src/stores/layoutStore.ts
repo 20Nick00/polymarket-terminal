@@ -13,7 +13,7 @@ interface Layout {
   static?: boolean;
 }
 
-const LAYOUT_STORAGE_KEY = 'polymarket-layout-v3';
+const LAYOUT_STORAGE_KEY = 'polymarket-layout-v4';
 
 const DEFAULT_LAYOUT: Layout[] = [
   // Left: Markets + Watchlist + Portfolio tabbed panel (full height)
@@ -21,8 +21,10 @@ const DEFAULT_LAYOUT: Layout[] = [
   // Center: MarketHeader + Outcomes + Chart (large)
   { i: 'center-panel', x: 3, y: 0, w: 6, h: 12, minW: 4, minH: 8 },
   // Right top: Market Info + Related Markets
-  { i: 'market-info', x: 9, y: 0, w: 3, h: 12, minW: 2, minH: 6 },
-  // Bottom center: Order Book + Trades + News tabs
+  { i: 'market-info', x: 9, y: 0, w: 3, h: 7, minW: 2, minH: 5 },
+  // Right middle: Signals / Edge Detection
+  { i: 'signals', x: 9, y: 7, w: 3, h: 5, minW: 2, minH: 3 },
+  // Bottom left: Order Book + Trades + News tabs
   { i: 'book-trades-news', x: 3, y: 12, w: 3, h: 8, minW: 2, minH: 5 },
   // Bottom center: Quick Stats / Analytics
   { i: 'quick-stats', x: 6, y: 12, w: 3, h: 8, minW: 2, minH: 4 },
@@ -36,7 +38,7 @@ function loadLayout(): Layout[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       const keys = parsed.map((l: Layout) => l.i);
-      if (keys.includes('center-panel') && keys.includes('book-trades-news')) {
+      if (keys.includes('center-panel') && keys.includes('signals')) {
         return parsed;
       }
     }

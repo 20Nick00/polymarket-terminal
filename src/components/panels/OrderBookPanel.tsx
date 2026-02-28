@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Typography, Spin, Empty } from 'antd';
 import { useMarketStore } from '../../stores/marketStore';
 
@@ -7,16 +6,7 @@ const { Text } = Typography;
 const MAX_LEVELS = 12;
 
 export default function OrderBookPanel() {
-  const { orderBook, orderBookLoading, selectedTokenId, loadOrderBook, selectedMarket } = useMarketStore();
-
-  // Auto-refresh order book every 3 seconds
-  useEffect(() => {
-    if (!selectedTokenId) return;
-    const timer = window.setInterval(() => {
-      loadOrderBook(selectedTokenId);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [selectedTokenId, loadOrderBook]);
+  const { orderBook, orderBookLoading, selectedMarket } = useMarketStore();
 
   if (!selectedMarket) {
     return (

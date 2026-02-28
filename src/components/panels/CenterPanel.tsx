@@ -3,12 +3,18 @@ import { useMarketStore } from '../../stores/marketStore';
 import MarketHeader from './MarketHeader';
 import OutcomesList from './OutcomesList';
 import PriceChart from './PriceChart';
+import ComparisonView from './ComparisonView';
 
 export default function CenterPanel() {
-  const { selectedEvent } = useMarketStore();
+  const { selectedEvent, compareEvent } = useMarketStore();
   const [overlayAll, setOverlayAll] = useState(false);
 
   const isMultiOutcome = selectedEvent && selectedEvent.markets.length > 1;
+
+  // Show comparison view when comparing two markets
+  if (compareEvent) {
+    return <ComparisonView />;
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

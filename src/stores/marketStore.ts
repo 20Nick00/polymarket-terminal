@@ -31,12 +31,16 @@ interface MarketState {
   trades: Trade[];
   tradesLoading: boolean;
 
+  // Comparison
+  compareEvent: PolymarketEvent | null;
+
   // Actions
   loadEvents: (params?: { tag?: string; title?: string }) => Promise<void>;
   searchMarkets: (query: string) => Promise<void>;
   setActiveTag: (tag: string) => void;
   selectEvent: (event: PolymarketEvent) => void;
   selectMarket: (market: PolymarketMarket) => void;
+  setCompareEvent: (event: PolymarketEvent | null) => void;
   loadOrderBook: (tokenId: string) => Promise<void>;
   loadPriceHistory: (tokenId: string, interval?: string, fidelity?: number) => Promise<void>;
   loadHolders: (conditionId: string) => Promise<void>;
@@ -65,6 +69,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   newsLoading: false,
   trades: [],
   tradesLoading: false,
+  compareEvent: null,
 
   loadEvents: async (params) => {
     set({ eventsLoading: true });
@@ -179,6 +184,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     } catch {
       set({ news: [], newsLoading: false });
     }
+  },
+
+  setCompareEvent: (event: PolymarketEvent | null) => {
+    set({ compareEvent: event });
   },
 
   loadTrades: async (tokenId: string) => {

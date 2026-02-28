@@ -13,7 +13,7 @@ const CATEGORY_TAGS = ['All', 'Politics', 'Sports', 'Crypto', 'Science', 'Pop Cu
 export default function MarketBrowser() {
   const {
     events, eventsLoading, loadEvents, searchMarkets, selectEvent,
-    activeTag, setActiveTag, selectedEvent,
+    activeTag, setActiveTag, selectedEvent, compareEvent, setCompareEvent,
   } = useMarketStore();
   const { isWatched, toggleWatch } = useWatchlistStore();
   const [searchValue, setSearchValue] = useState('');
@@ -104,8 +104,16 @@ export default function MarketBrowser() {
               event={event}
               index={idx + 1}
               isSelected={selectedEvent?.id === event.id}
+              isComparing={compareEvent?.id === event.id}
               isWatched={isWatched(event.id)}
-              onSelect={() => selectEvent(event)}
+              onSelect={(ctrlKey) => {
+                if (ctrlKey && selectedEvent && selectedEvent.id !== event.id) {
+                  setCompareEvent(event);
+                } else {
+                  setCompareEvent(null);
+                  selectEvent(event);
+                }
+              }}
               onToggleWatch={() => toggleWatch(event.id, event.title, event.slug)}
             />
           ))
@@ -119,12 +127,13 @@ interface MarketRowProps {
   event: PolymarketEvent;
   index: number;
   isSelected: boolean;
+  isComparing: boolean;
   isWatched: boolean;
-  onSelect: () => void;
+  onSelect: (ctrlKey: boolean) => void;
   onToggleWatch: () => void;
 }
 
-function MarketRow({ event, index, isSelected, isWatched, onSelect, onToggleWatch }: MarketRowProps) {
+function MarketRow({ event, index, isSelected, isComparing, isWatched, onSelect, onToggleWatch }: MarketRowProps) {
   const isMultiOutcome = event.markets && event.markets.length > 1;
   const primaryMarket = event.markets?.[0];
 
@@ -153,17 +162,17 @@ function MarketRow({ event, index, isSelected, isWatched, onSelect, onToggleWatc
 
   return (
     <div
-      onClick={onSelect}
+      onClick={(e) => onSelect(e.ctrlKey || e.metaKey)}
       style={{
         padding: '6px 6px',
         borderBottom: '1px solid #111128',
         cursor: 'pointer',
-        background: isSelected ? '#1a1a3e' : 'transparent',
-        borderLeft: isSelected ? '2px solid #1668dc' : '2px solid transparent',
+        background: isSelected ? '#1a1a3e' : isComparing ? '#1a2a1a' : 'transparent',
+        borderLeft: isSelected ? '2px solid #1668dc' : isComparing ? '2px solid #a855f7' : '2px solid transparent',
         transition: 'background 0.15s',
       }}
-      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = '#111128'; }}
-      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+      onMouseEnter={(e) => { if (!isSelected && !isComparing) e.currentTarget.style.background = '#111128'; }}
+      onMouseLeave={(e) => { if (!isSelected && !isComparing) e.currentTarget.style.background = 'transparent'; }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
         {/* Row number */}

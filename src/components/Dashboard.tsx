@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { ResponsiveGridLayout, useContainerWidth, verticalCompactor } from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
 import { Typography, Button, Tooltip } from 'antd';
@@ -12,16 +12,21 @@ import {
   AppstoreOutlined,
   WalletOutlined,
   FundOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useMarketStore } from '../stores/marketStore';
+import { usePortfolioStore } from '../stores/portfolioStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { formatTimeToResolution, formatUsd } from '../api/helpers';
 import LeftPanel from './panels/LeftPanel';
 import CenterPanel from './panels/CenterPanel';
 import OrderBookNewsPanel from './panels/OrderBookNewsPanel';
 import MarketInfo from './panels/MarketInfo';
 import TopHolders from './panels/TopHolders';
 import QuickStats from './panels/QuickStats';
+import SignalsPanel from './panels/SignalsPanel';
 import PortfolioDashboard from './panels/PortfolioDashboard';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -37,6 +42,7 @@ const PANEL_CONFIG: Record<string, { title: string; icon: React.ReactNode }> = {
   'market-info': { title: 'Market Info', icon: <DashboardOutlined /> },
   'top-holders': { title: 'Top Holders', icon: <TeamOutlined /> },
   'quick-stats': { title: 'Analytics', icon: <DashboardOutlined /> },
+  'signals': { title: 'Signals', icon: <FundOutlined /> },
 };
 
 const PANEL_COMPONENTS: Record<string, React.FC> = {
@@ -46,15 +52,44 @@ const PANEL_COMPONENTS: Record<string, React.FC> = {
   'market-info': MarketInfo,
   'top-holders': TopHolders,
   'quick-stats': QuickStats,
+  'signals': SignalsPanel,
 };
 
 export default function Dashboard() {
   const { layout, setLayout, resetLayout } = useLayoutStore();
-  const { refreshSelectedMarketData } = useMarketStore();
+  const { refreshSelectedMarketData, selectedEvent, selectedMarket, events } = useMarketStore();
+  const { totalPnl, totalPnlPct, walletAddress } = usePortfolioStore();
   const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1280 });
   const [viewMode, setViewMode] = useState<ViewMode>('terminal');
 
+  // Count signals for bell badge
+  const signalCount = useMemo(() => {
+    let count = 0;
+    events.forEach(ev => {
+      ev.markets?.forEach(m => {
+        if (Math.abs(m.oneDayPriceChange ?? 0) >= 0.05) count++;
+        if (m.spread && m.spread > 0.05) count++;
+      });
+      if (ev.markets?.length > 1) {
+        const probSum = ev.markets.reduce((sum, m) => {
+          const prices = m.outcomePrices;
+          try {
+            const parsed = typeof prices === 'string' ? JSON.parse(prices) : prices;
+            return sum + parseFloat(parsed?.[0] || '0');
+          } catch { return sum; }
+        }, 0);
+        if (probSum > 1.05 || probSum < 0.95) count++;
+      }
+    });
+    return count;
+  }, [events]);
+
+  const timeInfo = selectedMarket
+    ? formatTimeToResolution(selectedMarket.endDate || selectedEvent?.endDate)
+    : null;
+
   useKeyboardShortcuts();
+  const { secondsAgo } = useAutoRefresh();
 
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
@@ -101,14 +136,57 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Portfolio P&L */}
+          {walletAddress && (
+            <>
+              <Text style={{
+                color: totalPnl >= 0 ? '#00d4aa' : '#ff4757',
+                fontSize: 11,
+                fontWeight: 600,
+                fontFamily: 'monospace',
+              }}>
+                P&L: {totalPnl >= 0 ? '+' : ''}{formatUsd(totalPnl)}
+                <span style={{ opacity: 0.7, marginLeft: 3 }}>
+                  ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(1)}%)
+                </span>
+              </Text>
+              <div style={{ width: 1, height: 16, background: '#1a1a2e' }} />
+            </>
+          )}
+
+          {/* Market timer */}
+          {timeInfo && selectedMarket && (
+            <>
+              <Text style={{ color: timeInfo.color, fontSize: 10 }}>
+                {timeInfo.urgent ? '⏰ ' : ''}{timeInfo.text}
+              </Text>
+              <div style={{ width: 1, height: 16, background: '#1a1a2e' }} />
+            </>
+          )}
+
+          {/* Notification bell */}
+          {signalCount > 0 && (
+            <div style={{ position: 'relative' }}>
+              <BellOutlined style={{ color: '#888', fontSize: 13 }} />
+              <span style={{
+                position: 'absolute', top: -4, right: -6,
+                background: '#ff4757', color: '#fff',
+                fontSize: 8, borderRadius: 6,
+                padding: '0 3px', lineHeight: '12px',
+                fontWeight: 700,
+              }}>
+                {signalCount > 9 ? '9+' : signalCount}
+              </span>
+            </div>
+          )}
+
           {/* Shortcut hints */}
           {viewMode === 'terminal' && (
             <div style={{ display: 'flex', gap: 6 }}>
               {[
                 { keys: 'Ctrl+K', desc: 'Search' },
-                { keys: '↑↓', desc: 'Navigate' },
+                { keys: '↑↓', desc: 'Nav' },
                 { keys: 'R', desc: 'Refresh' },
-                { keys: 'W', desc: 'Watch' },
               ].map(s => (
                 <Text key={s.keys} style={{ color: '#444', fontSize: 9 }}>
                   <kbd>{s.keys}</kbd>
@@ -210,6 +288,30 @@ export default function Dashboard() {
           )}
         </div>
       )}
+
+      {/* Footer */}
+      <div style={{
+        height: 20,
+        background: '#0d0d1a',
+        borderTop: '1px solid #1a1a2e',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 12px',
+        flexShrink: 0,
+      }}>
+        <Text style={{ color: '#444', fontSize: 9 }}>
+          {selectedEvent ? selectedEvent.title.slice(0, 60) : 'No market selected'}
+        </Text>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Text style={{ color: '#444', fontSize: 9 }}>
+            Book: 3s · Chart: 60s · Trades: 10s · Holders: 5m
+          </Text>
+          <Text style={{ color: '#555', fontSize: 9 }}>
+            Updated: {secondsAgo}s ago
+          </Text>
+        </div>
+      </div>
     </div>
   );
 }

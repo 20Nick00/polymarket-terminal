@@ -48,14 +48,19 @@ export function useKeyboardShortcuts() {
       return;
     }
 
-    // Escape = deselect
+    // Escape = deselect / clear comparison
     if (e.key === 'Escape') {
       e.preventDefault();
-      useMarketStore.setState({
-        selectedEvent: null,
-        selectedMarket: null,
-        selectedTokenId: null,
-      });
+      const { compareEvent } = useMarketStore.getState();
+      if (compareEvent) {
+        useMarketStore.setState({ compareEvent: null });
+      } else {
+        useMarketStore.setState({
+          selectedEvent: null,
+          selectedMarket: null,
+          selectedTokenId: null,
+        });
+      }
       return;
     }
 
