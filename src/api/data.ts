@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const dataApi = axios.create({
-  baseURL: 'https://data-api.polymarket.com',
+  baseURL: '/api/data',
   timeout: 15000,
 });
 

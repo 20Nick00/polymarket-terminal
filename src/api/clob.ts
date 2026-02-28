@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { OrderBook, PriceHistoryPoint, Trade } from '../types/market';
 
 const clob = axios.create({
-  baseURL: 'https://clob.polymarket.com',
+  baseURL: '/api/clob',
   timeout: 15000,
 });
 

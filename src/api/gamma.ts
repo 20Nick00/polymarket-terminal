@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { PolymarketEvent, PolymarketMarket } from '../types/market';
 
 const gamma = axios.create({
-  baseURL: 'https://gamma-api.polymarket.com',
+  baseURL: '/api/gamma',
   timeout: 15000,
 });
 
