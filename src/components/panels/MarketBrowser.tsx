@@ -4,6 +4,7 @@ import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMarketStore } from '../../stores/marketStore';
 import { useWatchlistStore } from '../../stores/watchlistStore';
+import { parseOutcomePrices } from '../../api/helpers';
 import type { PolymarketEvent } from '../../types/market';
 
 const { Text } = Typography;
@@ -38,16 +39,8 @@ export default function MarketBrowser() {
   const getPrice = (event: PolymarketEvent): number => {
     const m = event.markets?.[0];
     if (!m) return 0;
-    try {
-      const prices = JSON.parse(m.outcomePrices as unknown as string || '[]');
-      return Math.round((parseFloat(prices[0] || '0')) * 100);
-    } catch {
-      const prices = m.outcomePrices;
-      if (Array.isArray(prices) && prices.length > 0) {
-        return Math.round(parseFloat(prices[0]) * 100);
-      }
-      return 0;
-    }
+    const { yes } = parseOutcomePrices(m.outcomePrices);
+    return Math.round(yes * 100);
   };
 
   const getVolume = (event: PolymarketEvent): number => {
@@ -132,8 +125,9 @@ export default function MarketBrowser() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Input
+        className="market-search-input"
         prefix={<SearchOutlined style={{ color: '#666' }} />}
-        placeholder="Search markets..."
+        placeholder="Search markets... (Ctrl+K)"
         value={searchValue}
         onChange={onSearchChange}
         style={{

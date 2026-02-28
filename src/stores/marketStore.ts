@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import type { PolymarketEvent, PolymarketMarket, OrderBook, PriceHistoryPoint, NewsArticle } from '../types/market';
+import type { PolymarketEvent, PolymarketMarket, OrderBook, PriceHistoryPoint, NewsArticle, Trade } from '../types/market';
 import type { HolderInfo } from '../api/data';
 import { fetchEvents, searchEvents } from '../api/gamma';
-import { fetchOrderBook, fetchPriceHistory } from '../api/clob';
+import { fetchOrderBook, fetchPriceHistory, fetchTrades } from '../api/clob';
 import { fetchTopHolders } from '../api/data';
 import { fetchNewsForMarket } from '../api/news';
 import { getYesTokenId, parseJsonArray as parseJsonArrayLocal } from '../api/helpers';
@@ -28,6 +28,8 @@ interface MarketState {
   holdersLoading: boolean;
   news: NewsArticle[];
   newsLoading: boolean;
+  trades: Trade[];
+  tradesLoading: boolean;
 
   // Actions
   loadEvents: (params?: { tag?: string; title?: string }) => Promise<void>;
@@ -36,9 +38,10 @@ interface MarketState {
   selectEvent: (event: PolymarketEvent) => void;
   selectMarket: (market: PolymarketMarket) => void;
   loadOrderBook: (tokenId: string) => Promise<void>;
-  loadPriceHistory: (tokenId: string, interval?: string) => Promise<void>;
+  loadPriceHistory: (tokenId: string, interval?: string, fidelity?: number) => Promise<void>;
   loadHolders: (conditionId: string) => Promise<void>;
   loadNews: (title: string) => Promise<void>;
+  loadTrades: (tokenId: string) => Promise<void>;
   refreshSelectedMarketData: () => Promise<void>;
 }
 
@@ -60,6 +63,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   holdersLoading: false,
   news: [],
   newsLoading: false,
+  trades: [],
+  tradesLoading: false,
 
   loadEvents: async (params) => {
     set({ eventsLoading: true });
@@ -114,6 +119,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       if (tokenId) {
         get().loadOrderBook(tokenId);
         get().loadPriceHistory(tokenId);
+        get().loadTrades(tokenId);
       }
       if (market.conditionId) {
         get().loadHolders(market.conditionId);
@@ -128,6 +134,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     if (tokenId) {
       get().loadOrderBook(tokenId);
       get().loadPriceHistory(tokenId);
+      get().loadTrades(tokenId);
     }
     if (market.conditionId) {
       get().loadHolders(market.conditionId);
@@ -144,10 +151,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     }
   },
 
-  loadPriceHistory: async (tokenId: string, interval = 'max') => {
+  loadPriceHistory: async (tokenId: string, interval = 'max', fidelity = 720) => {
     set({ priceHistoryLoading: true });
     try {
-      const history = await fetchPriceHistory(tokenId, interval, 60);
+      const history = await fetchPriceHistory(tokenId, interval, fidelity);
       set({ priceHistory: history, priceHistoryLoading: false });
     } catch {
       set({ priceHistory: [], priceHistoryLoading: false });
@@ -174,11 +181,22 @@ export const useMarketStore = create<MarketState>((set, get) => ({
     }
   },
 
+  loadTrades: async (tokenId: string) => {
+    set({ tradesLoading: true });
+    try {
+      const trades = await fetchTrades(tokenId, 50);
+      set({ trades, tradesLoading: false });
+    } catch {
+      set({ trades: [], tradesLoading: false });
+    }
+  },
+
   refreshSelectedMarketData: async () => {
     const { selectedTokenId, selectedMarket, selectedEvent } = get();
     if (selectedTokenId) {
       get().loadOrderBook(selectedTokenId);
       get().loadPriceHistory(selectedTokenId);
+      get().loadTrades(selectedTokenId);
     }
     if (selectedMarket?.conditionId) {
       get().loadHolders(selectedMarket.conditionId);

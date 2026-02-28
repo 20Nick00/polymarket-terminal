@@ -1,6 +1,7 @@
-import { Typography, Descriptions, Empty, Tag, Progress } from 'antd';
+import { Typography, Descriptions, Empty, Progress } from 'antd';
 import { ClockCircleOutlined, DollarOutlined, BarChartOutlined } from '@ant-design/icons';
 import { useMarketStore } from '../../stores/marketStore';
+import { parseOutcomePrices, formatUsd } from '../../api/helpers';
 
 const { Text, Paragraph } = Typography;
 
@@ -15,32 +16,12 @@ export default function MarketInfo() {
     );
   }
 
-  let yesPrice = 0;
-  let noPrice = 0;
-  try {
-    const prices = JSON.parse(selectedMarket.outcomePrices as unknown as string || '[]');
-    yesPrice = parseFloat(prices[0] || '0');
-    noPrice = parseFloat(prices[1] || '0');
-  } catch {
-    const prices = selectedMarket.outcomePrices;
-    if (Array.isArray(prices)) {
-      yesPrice = parseFloat(prices[0] || '0');
-      noPrice = parseFloat(prices[1] || '0');
-    }
-  }
+  const { yes: yesPrice, no: noPrice } = parseOutcomePrices(selectedMarket.outcomePrices);
 
   const volume = parseFloat(selectedMarket.volume || '0');
   const liquidity = parseFloat(selectedMarket.liquidity || '0');
   const endDate = selectedMarket.endDate ? new Date(selectedMarket.endDate) : null;
-
-  const timeRemaining = endDate
-    ? getTimeRemaining(endDate)
-    : 'N/A';
-
-  const formatUsd = (val: number) =>
-    val >= 1000000 ? `$${(val / 1000000).toFixed(2)}M`
-      : val >= 1000 ? `$${(val / 1000).toFixed(1)}K`
-        : `$${val.toFixed(0)}`;
+  const timeRemaining = endDate ? getTimeRemaining(endDate) : 'N/A';
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '0 2px' }}>
@@ -55,17 +36,17 @@ export default function MarketInfo() {
       {/* Odds bar */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <Text style={{ color: '#52c41a', fontWeight: 700, fontSize: 16 }}>
+          <Text style={{ color: '#00d4aa', fontWeight: 700, fontSize: 16, fontFamily: 'monospace' }}>
             YES {(yesPrice * 100).toFixed(1)}¢
           </Text>
-          <Text style={{ color: '#ff4d4f', fontWeight: 700, fontSize: 16 }}>
+          <Text style={{ color: '#ff4757', fontWeight: 700, fontSize: 16, fontFamily: 'monospace' }}>
             NO {(noPrice * 100).toFixed(1)}¢
           </Text>
         </div>
         <Progress
           percent={yesPrice * 100}
-          strokeColor="#52c41a"
-          trailColor="#ff4d4f33"
+          strokeColor="#00d4aa"
+          trailColor="rgba(255, 71, 87, 0.3)"
           showInfo={false}
           size="small"
         />
@@ -87,29 +68,22 @@ export default function MarketInfo() {
         <Descriptions.Item label={<><ClockCircleOutlined /> Ends</>}>
           <Text style={{ color: '#faad14', fontSize: 11 }}>{timeRemaining}</Text>
         </Descriptions.Item>
-        {selectedMarket.spread !== undefined && (
+        {selectedMarket.spread !== undefined && selectedMarket.spread > 0 && (
           <Descriptions.Item label="Spread">
             {(selectedMarket.spread * 100).toFixed(2)}¢
           </Descriptions.Item>
         )}
       </Descriptions>
 
-      {/* Outcomes for multi-outcome markets */}
+      {/* Related Markets / Outcomes */}
       {selectedEvent.markets.length > 1 && (
-        <div style={{ marginTop: 8 }}>
-          <Text style={{ color: '#888', fontSize: 11, display: 'block', marginBottom: 4 }}>
-            OUTCOMES
+        <div style={{ marginTop: 10 }}>
+          <Text style={{ color: '#888', fontSize: 10, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Related Markets ({selectedEvent.markets.length})
           </Text>
           {selectedEvent.markets.map(m => {
-            let price = 0;
-            try {
-              const p = JSON.parse(m.outcomePrices as unknown as string || '[]');
-              price = parseFloat(p[0] || '0');
-            } catch {
-              if (Array.isArray(m.outcomePrices) && m.outcomePrices.length > 0) {
-                price = parseFloat(m.outcomePrices[0]);
-              }
-            }
+            const { yes: price } = parseOutcomePrices(m.outcomePrices);
+            const isSelected = m.id === selectedMarket.id;
             return (
               <div
                 key={m.id}
@@ -117,21 +91,32 @@ export default function MarketInfo() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '3px 0',
-                  borderBottom: '1px solid #1a1a2e',
+                  padding: '4px 6px',
+                  borderRadius: 3,
+                  marginBottom: 2,
+                  background: isSelected ? '#1668dc22' : '#111128',
+                  border: isSelected ? '1px solid #1668dc44' : '1px solid transparent',
                   cursor: 'pointer',
+                  transition: 'all 0.15s',
                 }}
                 onClick={() => useMarketStore.getState().selectMarket(m)}
               >
-                <Text style={{ color: '#ccc', fontSize: 11 }} ellipsis>
-                  {m.question?.slice(0, 40) || m.outcomes?.[0]}
+                <Text style={{ color: isSelected ? '#e6e6e6' : '#aaa', fontSize: 11, flex: 1 }} ellipsis>
+                  {m.question?.slice(0, 45) || m.outcomes?.[0]}
                 </Text>
-                <Tag
-                  color={price >= 0.5 ? 'green' : price >= 0.2 ? 'orange' : 'red'}
-                  style={{ margin: 0, fontSize: 10 }}
-                >
+                <div style={{
+                  background: price >= 0.5 ? '#00d4aa22' : price >= 0.2 ? '#faad1422' : '#ff475722',
+                  color: price >= 0.5 ? '#00d4aa' : price >= 0.2 ? '#faad14' : '#ff4757',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: 'monospace',
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  marginLeft: 8,
+                  flexShrink: 0,
+                }}>
                   {(price * 100).toFixed(0)}¢
-                </Tag>
+                </div>
               </div>
             );
           })}
@@ -141,8 +126,8 @@ export default function MarketInfo() {
       {/* Description */}
       {selectedEvent.description && (
         <div style={{ marginTop: 10 }}>
-          <Text style={{ color: '#888', fontSize: 10, display: 'block', marginBottom: 2 }}>
-            RESOLUTION CRITERIA
+          <Text style={{ color: '#888', fontSize: 10, display: 'block', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Resolution Criteria
           </Text>
           <Paragraph
             style={{ color: '#999', fontSize: 11, marginBottom: 0 }}

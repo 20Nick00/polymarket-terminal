@@ -1,217 +1,210 @@
-import { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries, HistogramSeries, ColorType, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData, type Time } from 'lightweight-charts';
-import { Segmented, Typography, Spin, Empty } from 'antd';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+import { Typography, Spin, Empty } from 'antd';
 import { useMarketStore } from '../../stores/marketStore';
+import { parseOutcomePrices } from '../../api/helpers';
 
 const { Text } = Typography;
 
 const INTERVALS = [
-  { label: '1D', value: '1d', fidelity: 5 },
-  { label: '1W', value: '1w', fidelity: 30 },
-  { label: '1M', value: '1m', fidelity: 60 },
-  { label: '3M', value: '3m', fidelity: 360 },
-  { label: 'All', value: 'max', fidelity: 1440 },
+  { label: '1H', interval: '1h', fidelity: 1 },
+  { label: '6H', interval: '6h', fidelity: 5 },
+  { label: '1D', interval: '1d', fidelity: 10 },
+  { label: '1W', interval: '1w', fidelity: 60 },
+  { label: '1M', interval: '1m', fidelity: 360 },
+  { label: 'ALL', interval: 'max', fidelity: 720 },
 ];
 
+interface ChartPoint {
+  time: number;
+  price: number;
+  label: string;
+}
+
 export default function PriceChart() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const { priceHistory, priceHistoryLoading, selectedMarket, selectedEvent, selectedTokenId, loadPriceHistory } = useMarketStore();
+  const [activeInterval, setActiveInterval] = useState('max');
 
-  const { priceHistory, priceHistoryLoading, selectedMarket, selectedTokenId, loadPriceHistory } = useMarketStore();
-  const [interval, setInterval] = useState('max');
-
-  // Create chart
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: '#0d0d1a' },
-        textColor: '#888',
-        fontSize: 11,
-      },
-      grid: {
-        vertLines: { color: '#1a1a2e' },
-        horzLines: { color: '#1a1a2e' },
-      },
-      crosshair: {
-        vertLine: { color: '#444', width: 1, style: 3 },
-        horzLine: { color: '#444', width: 1, style: 3 },
-      },
-      rightPriceScale: {
-        borderColor: '#333',
-        scaleMargins: { top: 0.1, bottom: 0.25 },
-      },
-      timeScale: {
-        borderColor: '#333',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      handleScroll: true,
-      handleScale: true,
-    });
-
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      borderDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-    });
-
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: '#26a69a44',
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-    });
-
-    chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
-
-    chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
-    volumeSeriesRef.current = volumeSeries;
-
-    const resizeObserver = new ResizeObserver(() => {
-      if (containerRef.current) {
-        chart.applyOptions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
-      }
-    });
-
-    resizeObserver.observe(containerRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-    };
-  }, []);
-
-  // Update data
-  useEffect(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
-
-    if (priceHistory.length === 0) {
-      candleSeriesRef.current.setData([]);
-      volumeSeriesRef.current.setData([]);
-      return;
-    }
-
-    // Build candlestick data from price history
-    const candleData: CandlestickData<Time>[] = [];
-    const volumeData: HistogramData<Time>[] = [];
-
-    // Group by time intervals for candlestick formation
-    const sorted = [...priceHistory].sort((a, b) => a.t - b.t);
-
-    // Create OHLC bars from sequential price points
-    const barSize = getBarSize(interval);
-    const bars = new Map<number, { o: number; h: number; l: number; c: number; v: number }>();
-
-    for (const point of sorted) {
-      const barTime = Math.floor(point.t / barSize) * barSize;
-      const existing = bars.get(barTime);
-      if (existing) {
-        existing.h = Math.max(existing.h, point.c);
-        existing.l = Math.min(existing.l, point.c);
-        existing.c = point.c;
-        existing.v += point.v;
-      } else {
-        bars.set(barTime, { o: point.c, h: point.c, l: point.c, c: point.c, v: point.v });
-      }
-    }
-
-    for (const [time, bar] of bars) {
-      candleData.push({
-        time: time as Time,
-        open: bar.o,
-        high: bar.h,
-        low: bar.l,
-        close: bar.c,
-      });
-      volumeData.push({
-        time: time as Time,
-        value: bar.v,
-        color: bar.c >= bar.o ? '#26a69a44' : '#ef535044',
-      });
-    }
-
-    candleSeriesRef.current.setData(candleData);
-    volumeSeriesRef.current.setData(volumeData);
-    chartRef.current?.timeScale().fitContent();
-  }, [priceHistory, interval]);
-
-  const handleIntervalChange = (value: string | number) => {
-    const val = String(value);
-    setInterval(val);
+  const handleIntervalChange = useCallback((interval: string, fidelity: number) => {
+    setActiveInterval(interval);
     if (selectedTokenId) {
-      loadPriceHistory(selectedTokenId, val);
+      loadPriceHistory(selectedTokenId, interval, fidelity);
     }
-  };
+  }, [selectedTokenId, loadPriceHistory]);
 
-  const currentPrice = selectedMarket ? (() => {
-    try {
-      const prices = JSON.parse(selectedMarket.outcomePrices as unknown as string || '[]');
-      return (parseFloat(prices[0] || '0') * 100).toFixed(1);
-    } catch {
-      const prices = selectedMarket.outcomePrices;
-      if (Array.isArray(prices) && prices.length > 0) {
-        return (parseFloat(prices[0]) * 100).toFixed(1);
-      }
-      return '0';
-    }
-  })() : '0';
+  // Build chart data from priceHistory
+  const chartData: ChartPoint[] = priceHistory
+    .map(p => ({
+      time: p.t,
+      price: p.c * 100, // convert 0-1 to 0-100 percentage
+      label: formatTimeLabel(p.t, activeInterval),
+    }))
+    .sort((a, b) => a.time - b.time);
+
+  const firstPrice = chartData.length > 0 ? chartData[0].price : 0;
+  const lastPrice = chartData.length > 0 ? chartData[chartData.length - 1].price : 0;
+  const priceChange = lastPrice - firstPrice;
+  const priceChangePct = firstPrice > 0 ? (priceChange / firstPrice) * 100 : 0;
+  const isPositive = priceChange >= 0;
+  const lineColor = isPositive ? '#00d4aa' : '#ff4757';
+
+  // Get current price from market
+  const currentPrice = selectedMarket ? parseOutcomePrices(selectedMarket.outcomePrices).yes * 100 : 0;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexShrink: 0 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#141924' }}>
+      {/* Header: price info + interval buttons */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '4px 8px', flexShrink: 0 }}>
         <div>
-          <Text style={{ color: '#e6e6e6', fontSize: 13, fontWeight: 600 }}>
-            {selectedMarket?.question?.slice(0, 60) || 'Select a market'}
+          <Text style={{ color: '#999', fontSize: 11, display: 'block', lineHeight: 1 }}>
+            {selectedEvent?.title?.slice(0, 50) || 'Select a market'}
+            {selectedMarket && selectedEvent && selectedEvent.markets.length > 1 && (
+              <span style={{ color: '#666' }}> — {selectedMarket.question?.slice(0, 30)}</span>
+            )}
           </Text>
           {selectedMarket && (
-            <Text style={{ color: parseFloat(currentPrice) >= 50 ? '#52c41a' : '#ff4d4f', fontSize: 18, fontWeight: 700, marginLeft: 12 }}>
-              {currentPrice}¢
-            </Text>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: 700, fontFamily: 'monospace' }}>
+                {currentPrice.toFixed(1)}%
+              </Text>
+              <Text style={{ color: lineColor, fontSize: 13, fontWeight: 600 }}>
+                {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
+              </Text>
+              <Text style={{ color: lineColor, fontSize: 11 }}>
+                ({isPositive ? '+' : ''}{priceChangePct.toFixed(1)}%)
+              </Text>
+            </div>
           )}
         </div>
-        <Segmented
-          size="small"
-          options={INTERVALS.map(i => ({ label: i.label, value: i.value }))}
-          value={interval}
-          onChange={handleIntervalChange}
-          style={{ background: '#1a1a2e' }}
-        />
+        <div style={{ display: 'flex', gap: 2 }}>
+          {INTERVALS.map(iv => (
+            <button
+              key={iv.interval}
+              onClick={() => handleIntervalChange(iv.interval, iv.fidelity)}
+              style={{
+                background: activeInterval === iv.interval ? '#1668dc' : '#1a2030',
+                color: activeInterval === iv.interval ? '#fff' : '#888',
+                border: 'none',
+                borderRadius: 3,
+                padding: '3px 8px',
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {iv.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }}>
-        {priceHistoryLoading && (
+
+      {/* Chart area */}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        {priceHistoryLoading && chartData.length === 0 ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <Spin />
           </div>
-        )}
-        {!priceHistoryLoading && priceHistory.length === 0 && !selectedMarket && (
+        ) : !selectedMarket ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
             <Empty description={<Text style={{ color: '#666' }}>Select a market to view chart</Text>} />
           </div>
+        ) : chartData.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Text style={{ color: '#666' }}>No price history available</Text>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
+                  <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="#1e2a3a" strokeDasharray="3 3" vertical={false} />
+              <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#555', fontSize: 10 }}
+                interval="preserveStartEnd"
+                minTickGap={50}
+              />
+              <YAxis
+                domain={['auto', 'auto']}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#555', fontSize: 10 }}
+                tickFormatter={(v: number) => `${v.toFixed(0)}%`}
+                width={40}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="price"
+                stroke={lineColor}
+                strokeWidth={2}
+                fill="url(#priceGradient)"
+                dot={false}
+                activeDot={{ r: 4, fill: lineColor, stroke: '#141924', strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
   );
 }
 
-function getBarSize(interval: string): number {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartPoint }> }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  const date = new Date(point.time * 1000);
+  return (
+    <div style={{
+      background: '#1a2030',
+      border: '1px solid #2a3a50',
+      borderRadius: 4,
+      padding: '6px 10px',
+      fontSize: 11,
+    }}>
+      <div style={{ color: '#999', marginBottom: 2 }}>
+        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        {' '}
+        {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+      </div>
+      <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, fontFamily: 'monospace' }}>
+        {point.price.toFixed(1)}%
+      </div>
+      <div style={{ color: '#888' }}>
+        {point.price.toFixed(1)}¢
+      </div>
+    </div>
+  );
+}
+
+function formatTimeLabel(timestamp: number, interval: string): string {
+  const date = new Date(timestamp * 1000);
   switch (interval) {
-    case '1d': return 300;       // 5 min bars
-    case '1w': return 1800;      // 30 min bars
-    case '1m': return 3600;      // 1 hour bars
-    case '3m': return 21600;     // 6 hour bars
-    case 'max': return 86400;    // 1 day bars
-    default: return 3600;
+    case '1h':
+    case '6h':
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    case '1d':
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    case '1w':
+      return date.toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit' });
+    case '1m':
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    case 'max':
+    default:
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 }

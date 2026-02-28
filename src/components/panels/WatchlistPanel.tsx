@@ -4,6 +4,7 @@ import { StarFilled, DeleteOutlined } from '@ant-design/icons';
 import { useWatchlistStore } from '../../stores/watchlistStore';
 import { useMarketStore } from '../../stores/marketStore';
 import { fetchEvent } from '../../api/gamma';
+import { parseOutcomePrices } from '../../api/helpers';
 import type { PolymarketEvent } from '../../types/market';
 
 const { Text } = Typography;
@@ -67,16 +68,8 @@ export default function WatchlistPanel() {
   const getPrice = (eventId: string): string => {
     const event = eventCache[eventId];
     if (!event?.markets?.[0]) return '--';
-    const m = event.markets[0];
-    try {
-      const prices = JSON.parse(m.outcomePrices as unknown as string || '[]');
-      return `${(parseFloat(prices[0] || '0') * 100).toFixed(0)}¢`;
-    } catch {
-      if (Array.isArray(m.outcomePrices) && m.outcomePrices.length > 0) {
-        return `${(parseFloat(m.outcomePrices[0]) * 100).toFixed(0)}¢`;
-      }
-      return '--';
-    }
+    const { yes } = parseOutcomePrices(event.markets[0].outcomePrices);
+    return `${(yes * 100).toFixed(0)}¢`;
   };
 
   return (

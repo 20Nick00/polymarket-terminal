@@ -34,7 +34,7 @@ export async function fetchMidpoint(tokenId: string): Promise<number> {
 export async function fetchPriceHistory(
   tokenId: string,
   interval: string = 'max',
-  fidelity: number = 60,
+  fidelity: number = 720,
 ): Promise<PriceHistoryPoint[]> {
   const { data } = await clob.get('/prices-history', {
     params: {

@@ -108,3 +108,52 @@ html, body, #root {
 .react-grid-item:hover {
   border-color: #2a2a4e !important;
 }
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #1a1a2e 25%, #222240 50%, #1a1a2e 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 3px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Keyboard shortcut badge */
+kbd {
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+  border-radius: 2px;
+  padding: 0 3px;
+  font-size: 9px;
+  color: #666;
+  font-family: monospace;
+}
+
+/* Table row transitions */
+.ant-table-tbody > tr {
+  transition: background 0.15s ease;
+}
+
+/* Smooth panel content transitions */
+.react-grid-item {
+  transition: box-shadow 0.2s ease;
+}
+
+.react-grid-item:hover {
+  box-shadow: 0 0 0 1px #2a2a4e;
+}

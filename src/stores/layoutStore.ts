@@ -13,22 +13,37 @@ interface Layout {
   static?: boolean;
 }
 
-const LAYOUT_STORAGE_KEY = 'polymarket-layout';
+const LAYOUT_STORAGE_KEY = 'polymarket-layout-v2';
 
 const DEFAULT_LAYOUT: Layout[] = [
-  { i: 'market-browser', x: 0, y: 0, w: 4, h: 14, minW: 3, minH: 6 },
-  { i: 'chart', x: 4, y: 0, w: 5, h: 8, minW: 3, minH: 5 },
-  { i: 'market-info', x: 9, y: 0, w: 3, h: 8, minW: 2, minH: 4 },
-  { i: 'order-book', x: 4, y: 8, w: 3, h: 6, minW: 2, minH: 4 },
-  { i: 'news', x: 7, y: 8, w: 3, h: 6, minW: 2, minH: 4 },
-  { i: 'watchlist', x: 10, y: 8, w: 2, h: 6, minW: 2, minH: 3 },
-  { i: 'top-holders', x: 0, y: 14, w: 4, h: 6, minW: 2, minH: 4 },
+  // Left: Markets + Watchlist tabbed panel (full height)
+  { i: 'left-panel', x: 0, y: 0, w: 3, h: 20, minW: 3, minH: 8 },
+  // Center top: Chart
+  { i: 'chart', x: 3, y: 0, w: 6, h: 10, minW: 4, minH: 6 },
+  // Right top: Market Info
+  { i: 'market-info', x: 9, y: 0, w: 3, h: 10, minW: 2, minH: 5 },
+  // Center bottom-left: Order Book + News tabs
+  { i: 'order-book-news', x: 3, y: 10, w: 3, h: 10, minW: 2, minH: 6 },
+  // Center bottom-middle: Trade Ticker
+  { i: 'trade-ticker', x: 6, y: 10, w: 3, h: 10, minW: 2, minH: 5 },
+  // Right bottom-top: Top Holders
+  { i: 'top-holders', x: 9, y: 10, w: 3, h: 5, minW: 2, minH: 4 },
+  // Right bottom-bottom: Quick Stats
+  { i: 'quick-stats', x: 9, y: 15, w: 3, h: 5, minW: 2, minH: 4 },
 ];
 
 function loadLayout(): Layout[] {
   try {
     const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : DEFAULT_LAYOUT;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Validate that it has the new panel keys
+      const keys = parsed.map((l: Layout) => l.i);
+      if (keys.includes('left-panel') && keys.includes('order-book-news')) {
+        return parsed;
+      }
+    }
+    return DEFAULT_LAYOUT;
   } catch {
     return DEFAULT_LAYOUT;
   }

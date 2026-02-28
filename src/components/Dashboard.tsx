@@ -7,49 +7,53 @@ import {
   LayoutOutlined,
   BarChartOutlined,
   ReadOutlined,
-  OrderedListOutlined,
-  StarOutlined,
   TeamOutlined,
   LineChartOutlined,
+  ThunderboltOutlined,
+  DashboardOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useMarketStore } from '../stores/marketStore';
-import MarketBrowser from './panels/MarketBrowser';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import LeftPanel from './panels/LeftPanel';
 import PriceChart from './panels/PriceChart';
-import OrderBookPanel from './panels/OrderBookPanel';
+import OrderBookNewsPanel from './panels/OrderBookNewsPanel';
 import MarketInfo from './panels/MarketInfo';
-import NewsPanel from './panels/NewsPanel';
-import WatchlistPanel from './panels/WatchlistPanel';
 import TopHolders from './panels/TopHolders';
+import TradeTicker from './panels/TradeTicker';
+import QuickStats from './panels/QuickStats';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const { Text } = Typography;
 
 const PANEL_CONFIG: Record<string, { title: string; icon: React.ReactNode }> = {
-  'market-browser': { title: 'Markets', icon: <OrderedListOutlined /> },
+  'left-panel': { title: 'Markets', icon: <AppstoreOutlined /> },
   'chart': { title: 'Chart', icon: <LineChartOutlined /> },
-  'order-book': { title: 'Order Book', icon: <BarChartOutlined /> },
+  'order-book-news': { title: 'Book / News', icon: <BarChartOutlined /> },
   'market-info': { title: 'Market Info', icon: <ReadOutlined /> },
-  'news': { title: 'News', icon: <ReadOutlined /> },
-  'watchlist': { title: 'Watchlist', icon: <StarOutlined /> },
   'top-holders': { title: 'Top Holders', icon: <TeamOutlined /> },
+  'trade-ticker': { title: 'Trades', icon: <ThunderboltOutlined /> },
+  'quick-stats': { title: 'Analytics', icon: <DashboardOutlined /> },
 };
 
 const PANEL_COMPONENTS: Record<string, React.FC> = {
-  'market-browser': MarketBrowser,
+  'left-panel': LeftPanel,
   'chart': PriceChart,
-  'order-book': OrderBookPanel,
+  'order-book-news': OrderBookNewsPanel,
   'market-info': MarketInfo,
-  'news': NewsPanel,
-  'watchlist': WatchlistPanel,
   'top-holders': TopHolders,
+  'trade-ticker': TradeTicker,
+  'quick-stats': QuickStats,
 };
 
 export default function Dashboard() {
   const { layout, setLayout, resetLayout } = useLayoutStore();
   const { refreshSelectedMarketData } = useMarketStore();
   const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1280 });
+
+  useKeyboardShortcuts();
 
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
@@ -81,8 +85,33 @@ export default function Dashboard() {
             Polymarket Trading Terminal
           </Text>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <Tooltip title="Refresh data">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Shortcut hints */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { keys: 'Ctrl+K', desc: 'Search' },
+              { keys: 'R', desc: 'Refresh' },
+              { keys: 'W', desc: 'Watch' },
+              { keys: 'Esc', desc: 'Deselect' },
+            ].map(s => (
+              <Text key={s.keys} style={{ color: '#444', fontSize: 9 }}>
+                <kbd style={{
+                  background: '#1a1a2e',
+                  border: '1px solid #2a2a3e',
+                  borderRadius: 2,
+                  padding: '0 3px',
+                  fontSize: 9,
+                  color: '#666',
+                  marginRight: 2,
+                }}>
+                  {s.keys}
+                </kbd>
+                {s.desc}
+              </Text>
+            ))}
+          </div>
+          <div style={{ width: 1, height: 16, background: '#1a1a2e' }} />
+          <Tooltip title="Refresh data (R)">
             <Button
               type="text"
               size="small"
