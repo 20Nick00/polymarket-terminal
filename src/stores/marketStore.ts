@@ -5,6 +5,7 @@ import { fetchEvents, searchEvents } from '../api/gamma';
 import { fetchOrderBook, fetchPriceHistory } from '../api/clob';
 import { fetchTopHolders } from '../api/data';
 import { fetchNewsForMarket } from '../api/news';
+import { getYesTokenId, parseJsonArray as parseJsonArrayLocal } from '../api/helpers';
 
 interface MarketState {
   // Events list
@@ -96,14 +97,20 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   },
 
   selectEvent: (event: PolymarketEvent) => {
-    const market = event.markets?.[0];
+    // Find the first market with a real price (not 0 or 1), fallback to first market
+    const market = event.markets?.find(m => {
+      const prices = parseJsonArrayLocal(m.outcomePrices);
+      const p = parseFloat(prices[0] || '0');
+      return p > 0.01 && p < 0.99;
+    }) ?? event.markets?.[0];
+
+    const tokenId = market ? getYesTokenId(market.clobTokenIds) : null;
     set({
       selectedEvent: event,
       selectedMarket: market ?? null,
-      selectedTokenId: market?.clobTokenIds?.[0] ?? null,
+      selectedTokenId: tokenId,
     });
     if (market) {
-      const tokenId = market.clobTokenIds?.[0];
       if (tokenId) {
         get().loadOrderBook(tokenId);
         get().loadPriceHistory(tokenId);
@@ -116,8 +123,8 @@ export const useMarketStore = create<MarketState>((set, get) => ({
   },
 
   selectMarket: (market: PolymarketMarket) => {
-    const tokenId = market.clobTokenIds?.[0];
-    set({ selectedMarket: market, selectedTokenId: tokenId ?? null });
+    const tokenId = getYesTokenId(market.clobTokenIds);
+    set({ selectedMarket: market, selectedTokenId: tokenId });
     if (tokenId) {
       get().loadOrderBook(tokenId);
       get().loadPriceHistory(tokenId);
