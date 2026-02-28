@@ -1,68 +1,110 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
+* {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #0a0a14;
+  color: #d4d4d4;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+::-webkit-scrollbar-track {
+  background: #0a0a14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* react-grid-layout overrides */
+.react-grid-item.react-grid-placeholder {
+  background: #1668dc !important;
+  opacity: 0.15 !important;
+  border-radius: 4px;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  border-right-color: #444 !important;
+  border-bottom-color: #444 !important;
+}
+
+/* Ant Design overrides for dark terminal */
+.ant-table {
+  background: transparent !important;
+}
+
+.ant-table-cell {
+  background: transparent !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #111128 !important;
+  border-bottom-color: #1a1a2e !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom-color: #1a1a2e !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #1a1a3e !important;
+}
+
+.ant-empty-description {
+  color: #555 !important;
+}
+
+.ant-spin-text {
+  color: #888 !important;
+}
+
+.ant-list-item {
+  border-bottom-color: #1a1a2e !important;
+}
+
+.ant-input {
+  background: #1a1a2e !important;
+  border-color: #333 !important;
+  color: #d4d4d4 !important;
+}
+
+.ant-input::placeholder {
+  color: #555 !important;
+}
+
+.ant-segmented {
+  background: #1a1a2e !important;
+}
+
+.ant-descriptions-item-label {
+  color: #888 !important;
+}
+
+.ant-descriptions-item-content {
+  color: #ccc !important;
+}
+
+/* Panel focus effect */
+.react-grid-item:hover {
+  border-color: #2a2a4e !important;
 }
